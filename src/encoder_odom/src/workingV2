@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+
+import math
+from math import sin, cos, pi
+import rospy
+# Needed for converting quaternion_from_euler
+import tf
+from nav_msgs.msg import Odometry
+from std_msgs.msg import Float32
+from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3
+
+
+class Encoder:
+    def __init__(self):
+        rospy.init_node('encoder_source')
+        self.odom_pub = rospy.Publisher("odom", Odometry, queue_size=50)
+
+        self.left_count = 0
+        self.right_count = 0
+
+    def left_callback(self,msg): 
+        # Raw encoder data in ticks
+        self.left_count = msg.data
+
+    def right_callback(self,msg): 
+        # Raw encoder data in ticks
+        self.right_count = msg.data
+    
+    
+    def main(self):
+
+        left_sub = rospy.Subscriber('l_enc_data', Float32, self.left_callback)
+        right_sub = rospy.Subscriber('r_enc_data', Float32, self.right_callback)
+
+        # Documented value for your specific encoder(TICKS) and robot values (IN METERS)
+        encoder_counts_per_rev = 256.0
+        wheel_dia = 0.1524
+        wheel_circum = wheel_dia * math.pi
+        # Space between left and right wheels
+        body_width = 0.5842
+        # Rate at which the program runs in (hz) how many times per second
+        hz_rate = 15.0
+
+        current_time = rospy.Time.now()
+
+        pre_l_tick = self.left_count
+        pre_r_tick = self.right_count
+
+        # Set Initial values
+        th = 0.0
+        x = 0.0
+        y = 0.0
+
+        r = rospy.Rate(hz_rate)
+        while not rospy.is_shutdown():
+            current_time = rospy.Time.now()
+
+            left_tick = self.left_count
+            right_tick = self.right_count
+
+            # Calculate the distance traveled by each wheel
+            distance_left = ((left_tick - pre_l_tick) / encoder_counts_per_rev) * wheel_circum
+            distance_right = ((right_tick - pre_r_tick) /encoder_counts_per_rev) * wheel_circum
+
+            pre_th = th
+
+            # Compute odometry in a typical way given the distances traveled by each wheel
+
+            # If the robot is moving perfectly forward (In order to aviod crashing the program by dividing by 0)
+            if distance_right == distance_left:
+                th = pre_th
+                x += distance_left * math.cos(pre_th)
+                y += distance_left * math.sin(pre_th)
+            else:
+                th = th + (distance_left-distance_right) / body_width
+                x = x - ((body_width*(distance_right + distance_left))/(2*(distance_right - distance_left))) * (math.sin(th) - math.sin(pre_th))
+                y = y + ((body_width*(distance_right + distance_left))/(2*(distance_right - distance_left))) * (math.cos(th) - math.cos(pre_th))
+
+            # Calculate robot velocities in referance of the robot base not the map
+            vth = (( distance_left- distance_right) / body_width) * hz_rate
+            vx = ((distance_right + distance_left) /2) * hz_rate
+            vy = 0
+
+
+            # since all odometry is 6DOF we'll need a quaternion created from yaw
+            odom_quat = tf.transformations.quaternion_from_euler(0, 0, th)
+
+            # next, we'll publish the odometry message over ROS
+            odom = Odometry()
+            odom.header.stamp = current_time
+            odom.header.frame_id = "odom"
+
+            # set the position (there was a period after the 0 and a * sign before odom_quat not sure if important)
+            odom.pose.pose = Pose(Point(x, y, 0), Quaternion(*odom_quat))
+
+            if vth != 0 and vx != 0:
+                odom.pose.covariance = [0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                        0.0, 0.001, 0.0, 0.0, 0.0, 0.0,
+                                        0.0, 0.0, 1000000.0, 0.0, 0.0, 0.0,
+                                        0.0, 0.0, 0.0, 1000000.0, 0.0, 0.0,
+                                        0.0, 0.0, 0.0, 0.0, 1000000.0, 0.0,
+                                        0.0, 0.0, 0.0, 0.0, 0.0, 1000.0]
+
+                odom.twist.covariance = [0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                        0.0, 0.001, 0.0, 0.0, 0.0, 0.0,
+                                        0.0, 0.0, 1000000.0, 0.0, 0.0, 0.0,
+                                        0.0, 0.0, 0.0, 1000000.0, 0.0, 0.0,
+                                        0.0, 0.0, 0.0, 0.0, 1000000.0, 0.0,
+                                        0.0, 0.0, 0.0, 0.0, 0.0, 1000.0]
+            else:
+                odom.pose.covariance = [1e-09, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                        0.0, 0.001, 1e-09, 0.0, 0.0, 0.0,
+                                        0.0, 0.0, 1000000.0, 0.0, 0.0, 0.0,
+                                        0.0, 0.0, 0.0, 1000000.0, 0.0, 0.0,
+                                        0.0, 0.0, 0.0, 0.0, 1000000.0, 0.0,
+                                        0.0, 0.0, 0.0, 0.0, 0.0, 1e-09]
+
+                odom.twist.covariance = [1e-09, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                        0.0, 0.001, 1e-09, 0.0, 0.0, 0.0,
+                                        0.0, 0.0, 1000000.0, 0.0, 0.0, 0.0,
+                                        0.0, 0.0, 0.0, 1000000.0, 0.0, 0.0,
+                                        0.0, 0.0, 0.0, 0.0, 1000000.0, 0.0,
+                                        0.0, 0.0, 0.0, 0.0, 0.0, 1e-09]
+
+            # set the velocity
+            odom.child_frame_id = "base_link"
+            odom.twist.twist = Twist(Vector3(vx, vy, 0), Vector3(0, 0, vth))
+
+            # publish the message
+            self.odom_pub.publish(odom)
+
+            last_time = current_time
+
+            pre_l_tick = left_tick
+            pre_r_tick = right_tick
+
+            r.sleep()
+
+encoder_source = Encoder()
+encoder_source.main()

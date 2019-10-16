@@ -1,0 +1,21 @@
+Declare self.l_values = Float32() in the while loop
+
+Init node not at the beginning
+
+Check if all self.variables are correct
+
+Check Sleep rates
+
+Check putting a float into a int variable of ROS
+
+Check what type of data imu and encoders accept
+
+Put subscriber into the while loop
+
+Having two subscribers running at once
+
+Class format/calling the class
+
+Make sure all packages are installed and imported for each node on a new machine
+
+CHECK ALL NODES AND ADJUST THE HZ (RATE) OF WHICH THE NODES RUN 

@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="robot_proxy" type="robot_proxy.py" name="robot_proxy"  output="screen"/>
+</launch>

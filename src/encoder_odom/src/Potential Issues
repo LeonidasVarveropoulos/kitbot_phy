@@ -1,0 +1,17 @@
+Check how often the callback recives data
+
+Is the formula correct for getting x,y, and th values
+
+are the encoder counts per revolution body_width and such all acurate
+
+Check the hz (rate) of other nodes publishing to this
+
+The callback does not follow the while loop here but rater updates every time the topic gets a new message
+
+Not sure if we need to change the th value to a odom_quat
+
+Dividing by two int distance_left = ((left_tick - pre_l_tick) / encoder_counts_per_rev) * wheel_circum
+
+Check all the + and - in formula
+
+Check comments

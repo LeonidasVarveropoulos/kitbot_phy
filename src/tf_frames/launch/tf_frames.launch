@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="tf" type="static_transform_publisher" name="base_to_foot" args="0 0 0 0 0 0 1  /base_footprint /base_link  100"/>
+  <node pkg="tf" type="static_transform_publisher" name="laser_to_base" args="-0.1524 0 0 0 0 0 1  /base_link /laser  100"/>
+  <node pkg="tf" type="static_transform_publisher" name="encoder_to_base" args="0 0 0 0 0 0 1  /base_link /encoder_odom  100"/>
+  <node pkg="tf" type="static_transform_publisher" name="imu_to_base" args="-0.2794 -.0508 0 0 0 0 1  /base_link /imu_odom  100"/>
+</launch>
